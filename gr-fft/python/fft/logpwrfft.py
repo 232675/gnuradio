@@ -24,7 +24,7 @@ from gnuradio import blocks
 import sys, math
 
 import fft_swig as fft
-import window
+from fft_swig import window
 
 try:
     from gnuradio import filter
@@ -41,7 +41,7 @@ class _logpwrfft_base(gr.hier_block2):
         """
         Create an log10(abs(fft)) stream chain.
         Provide access to the setting the filter and sample rate.
-        
+
         Args:
             sample_rate: Incoming stream sample rate
             fft_size: Number of FFT bins
@@ -69,8 +69,8 @@ class _logpwrfft_base(gr.hier_block2):
         self._avg = filter.single_pole_iir_filter_ff(1.0, fft_size)
         self._log = blocks.nlog10_ff(10, fft_size,
                                      -20*math.log10(fft_size)              # Adjust for number of bins
-                                     -10*math.log10(window_power/fft_size) # Adjust for windowing loss
-                                     -20*math.log10(ref_scale/2))      # Adjust for reference scale
+                                     -10*math.log10(float(window_power)/fft_size) # Adjust for windowing loss
+                                     -20*math.log10(float(ref_scale)/2))      # Adjust for reference scale
         self.connect(self, self._sd, fft, c2magsq, self._avg, self._log, self)
 
         self._average = average
@@ -81,7 +81,7 @@ class _logpwrfft_base(gr.hier_block2):
     def set_decimation(self, decim):
         """
         Set the decimation on stream decimator.
-        
+
         Args:
             decim: the new decimation
         """
@@ -90,7 +90,7 @@ class _logpwrfft_base(gr.hier_block2):
     def set_vec_rate(self, vec_rate):
         """
         Set the vector rate on stream decimator.
-        
+
         Args:
             vec_rate: the new vector rate
         """
@@ -99,7 +99,7 @@ class _logpwrfft_base(gr.hier_block2):
     def set_sample_rate(self, sample_rate):
         """
         Set the new sampling rate
-        
+
         Args:
             sample_rate: the new rate
         """
@@ -108,7 +108,7 @@ class _logpwrfft_base(gr.hier_block2):
     def set_average(self, average):
         """
         Set the averaging filter on/off.
-        
+
         Args:
             average: true to set averaging on
         """
@@ -121,7 +121,7 @@ class _logpwrfft_base(gr.hier_block2):
     def set_avg_alpha(self, avg_alpha):
         """
         Set the average alpha and set the taps if average was on.
-        
+
         Args:
             avg_alpha: the new iir filter tap
         """

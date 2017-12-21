@@ -1,23 +1,23 @@
 #
 # Copyright 2013 Free Software Foundation, Inc.
-# 
+#
 # This file is part of GNU Radio
-# 
+#
 # GNU Radio is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # GNU Radio is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 """
 OFDM Transmitter / Receiver hier blocks.
 
@@ -116,7 +116,7 @@ def _get_constellation(bps):
         exit(1)
 
 class ofdm_tx(gr.hier_block2):
-    """ Hierarchical block for OFDM modulation.
+    """Hierarchical block for OFDM modulation.
 
     The input is a byte stream (unsigned char) and the
     output is the complex modulated signal at baseband.
@@ -130,13 +130,16 @@ class ofdm_tx(gr.hier_block2):
     pilot_symbols: The pilot symbols.
     bps_header: Bits per symbol (header).
     bps_payload: Bits per symbol (payload).
-    sync_word1: The first sync preamble symbol. This has to be with zeros on alternating carriers.
-                Used for fine and coarse frequency offset and timing estimation.
-    sync_word2: The second sync preamble symbol. This has to be filled entirely. Also used for
-                coarse frequency offset and channel estimation.
+    sync_word1: The first sync preamble symbol. This has to be with
+    |           zeros on alternating carriers. Used for fine and
+    |           coarse frequency offset and timing estimation.
+    sync_word2: The second sync preamble symbol. This has to be filled
+    |           entirely. Also used for coarse frequency offset and
+    |           channel estimation.
     rolloff: The rolloff length in samples. Must be smaller than the CP.
     debug_log: Write output into log files (Warning: creates lots of data!)
     scramble_bits: Activates the scramblers (set this to True unless debugging)
+
     """
     def __init__(self, fft_len=_def_fft_len, cp_len=_def_cp_len,
                  packet_length_tag_key=_def_packet_length_tag_key,
@@ -194,7 +197,11 @@ class ofdm_tx(gr.hier_block2):
             scramble_header=scramble_bits
         )
         header_gen = digital.packet_headergenerator_bb(formatter_object.base(), self.packet_length_tag_key)
-        header_payload_mux = blocks.tagged_stream_mux(gr.sizeof_gr_complex*1, self.packet_length_tag_key)
+        header_payload_mux = blocks.tagged_stream_mux(
+                itemsize=gr.sizeof_gr_complex*1,
+                lengthtagname=self.packet_length_tag_key,
+                tag_preserve_head_pos=1 # Head tags on the payload stream stay on the head
+        )
         self.connect(
                 self,
                 crc,
@@ -212,17 +219,18 @@ class ofdm_tx(gr.hier_block2):
             self.scramble_seed,
             7,
             0, # Don't reset after fixed length (let the reset tag do that)
-            bits_per_byte=bps_payload,
+            bits_per_byte=8, # This is before unpacking
             reset_tag_key=self.packet_length_tag_key
+        )
+        payload_unpack = blocks.repack_bits_bb(
+            8, # Unpack 8 bits per byte
+            bps_payload,
+            self.packet_length_tag_key
         )
         self.connect(
             crc,
             payload_scrambler,
-            blocks.repack_bits_bb(
-                8, # Unpack 8 bits per byte
-                bps_payload,
-                self.packet_length_tag_key
-            ),
+            payload_unpack,
             payload_mod,
             (header_payload_mux, 1)
         )
@@ -254,7 +262,7 @@ class ofdm_tx(gr.hier_block2):
 
 
 class ofdm_rx(gr.hier_block2):
-    """ Hierarchical block for OFDM demodulation.
+    """Hierarchical block for OFDM demodulation.
 
     The input is a complex baseband signal (e.g. from a UHD source).
     The detected packets are output as a stream of packed bits on the output.
@@ -269,10 +277,12 @@ class ofdm_rx(gr.hier_block2):
     pilot_symbols: The pilot symbols.
     bps_header: Bits per symbol (header).
     bps_payload: Bits per symbol (payload).
-    sync_word1: The first sync preamble symbol. This has to be with zeros on alternating carriers.
-                Used for fine and coarse frequency offset and timing estimation.
-    sync_word2: The second sync preamble symbol. This has to be filled entirely. Also used for
-                coarse frequency offset and channel estimation.
+    sync_word1: The first sync preamble symbol. This has to be with
+    |           zeros on alternating carriers. Used for fine and
+    |           coarse frequency offset and timing estimation.
+    sync_word2: The second sync preamble symbol. This has to be filled
+    |           entirely. Also used for coarse frequency offset and
+    |           channel estimation.
     """
     def __init__(self, fft_len=_def_fft_len, cp_len=_def_cp_len,
                  frame_length_tag_key=_def_frame_length_tag_key,
@@ -418,10 +428,10 @@ class ofdm_rx(gr.hier_block2):
             self.scramble_seed,
             7,
             0, # Don't reset after fixed length
-            bits_per_byte=bps_payload,
+            bits_per_byte=8, # This is after packing
             reset_tag_key=self.packet_length_tag_key
         )
-        repack = blocks.repack_bits_bb(bps_payload, 8, self.packet_length_tag_key, True)
+        payload_pack = blocks.repack_bits_bb(bps_payload, 8, self.packet_length_tag_key, True)
         self.crc = digital.crc32_bb(True, self.packet_length_tag_key)
         self.connect(
                 (hpd, 1),
@@ -429,7 +439,7 @@ class ofdm_rx(gr.hier_block2):
                 payload_eq,
                 payload_serializer,
                 payload_demod,
-                repack,
+                payload_pack,
                 self.payload_descrambler,
                 self.crc,
                 self
@@ -440,7 +450,5 @@ class ofdm_rx(gr.hier_block2):
             self.connect(payload_eq,         blocks.file_sink(gr.sizeof_gr_complex*fft_len, 'post-payload-eq.dat'))
             self.connect(payload_serializer, blocks.file_sink(gr.sizeof_gr_complex,         'post-payload-serializer.dat'))
             self.connect(payload_demod,      blocks.file_sink(1,                            'post-payload-demod.dat'))
-            self.connect(repack,             blocks.file_sink(1,                            'post-payload-repack.dat'))
+            self.connect(payload_pack,       blocks.file_sink(1,                            'post-payload-pack.dat'))
             self.connect(crc,                blocks.file_sink(1,                            'post-payload-crc.dat'))
-
-

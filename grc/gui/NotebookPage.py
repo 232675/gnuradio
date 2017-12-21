@@ -20,15 +20,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 import pygtk
 pygtk.require('2.0')
 import gtk
+import gobject
 import Actions
 from StateCache import StateCache
 from Constants import MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT
 from DrawingArea import DrawingArea
 import os
 
-############################################################
-## Notebook Page
-############################################################
 
 class NotebookPage(gtk.HBox):
     """A page in the notebook."""
@@ -36,19 +34,19 @@ class NotebookPage(gtk.HBox):
     def __init__(self, main_window, flow_graph, file_path=''):
         """
         Page constructor.
-        
+
         Args:
             main_window: main window
             file_path: path to a flow graph file
         """
         self._flow_graph = flow_graph
-        self.set_proc(None)
+        self.process = None
         #import the file
         self.main_window = main_window
-        self.set_file_path(file_path)
+        self.file_path = file_path
         initial_state = flow_graph.get_parent().parse_flow_graph(file_path)
         self.state_cache = StateCache(initial_state)
-        self.set_saved(True)
+        self.saved = True
         #import the data to the flow graph
         self.get_flow_graph().import_data(initial_state)
         #initialize page gui
@@ -79,6 +77,7 @@ class NotebookPage(gtk.HBox):
         self.scrolled_window = gtk.ScrolledWindow()
         self.scrolled_window.set_size_request(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         self.scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self.scrolled_window.connect('key-press-event', self._handle_scroll_window_key_press)
         self.drawing_area = DrawingArea(self.get_flow_graph())
         self.scrolled_window.add_with_viewport(self.get_drawing_area())
         self.pack_start(self.scrolled_window)
@@ -88,23 +87,30 @@ class NotebookPage(gtk.HBox):
 
     def get_drawing_area(self): return self.drawing_area
 
+    def _handle_scroll_window_key_press(self, widget, event):
+        """forward Ctrl-PgUp/Down to NotebookPage (switch fg instead of horiz. scroll"""
+        is_ctrl_pg = (
+            event.state & gtk.gdk.CONTROL_MASK and
+            event.keyval in (gtk.keysyms.Page_Up, gtk.keysyms.Page_Down)
+        )
+        if is_ctrl_pg:
+            return self.get_parent().event(event)
+
     def get_generator(self):
         """
         Get the generator object for this flow graph.
-        
+
         Returns:
             generator
         """
-        return self.get_flow_graph().get_parent().get_generator()(
-            self.get_flow_graph(),
-            self.get_file_path(),
-        )
+        platform = self.get_flow_graph().get_parent()
+        return platform.Generator(self.get_flow_graph(), self.get_file_path())
 
     def _handle_button(self, button):
         """
         The button was clicked.
         Make the current page selected, then close.
-        
+
         Args:
             the: button
         """
@@ -114,7 +120,7 @@ class NotebookPage(gtk.HBox):
     def set_markup(self, markup):
         """
         Set the markup in this label.
-        
+
         Args:
             markup: the new markup text
         """
@@ -123,7 +129,7 @@ class NotebookPage(gtk.HBox):
     def get_tab(self):
         """
         Get the gtk widget for this page's tab.
-        
+
         Returns:
             gtk widget
         """
@@ -132,7 +138,7 @@ class NotebookPage(gtk.HBox):
     def get_proc(self):
         """
         Get the subprocess for the flow graph.
-        
+
         Returns:
             the subprocess object
         """
@@ -141,16 +147,40 @@ class NotebookPage(gtk.HBox):
     def set_proc(self, process):
         """
         Set the subprocess object.
-        
+
         Args:
             process: the new subprocess
         """
         self.process = process
 
+    def term_proc(self):
+        """
+        Terminate the subprocess object
+
+        Add a callback to kill the process
+        after 2 seconds if not already terminated
+        """
+        def kill(process):
+            """
+            Kill process if not already terminated
+
+            Called by gobject.timeout_add
+
+            Returns:
+                False to stop timeout_add periodic calls
+            """
+            is_terminated = process.poll()
+            if is_terminated is None:
+                process.kill()
+            return False
+
+        self.get_proc().terminate()
+        gobject.timeout_add(2000, kill, self.get_proc())
+
     def get_flow_graph(self):
         """
         Get the flow graph.
-        
+
         Returns:
             the flow graph
         """
@@ -160,7 +190,7 @@ class NotebookPage(gtk.HBox):
         """
         Get the read-only state of the file.
         Always false for empty path.
-        
+
         Returns:
             true for read-only
         """
@@ -171,7 +201,7 @@ class NotebookPage(gtk.HBox):
     def get_file_path(self):
         """
         Get the file path for the flow graph.
-        
+
         Returns:
             the file path or ''
         """
@@ -180,17 +210,16 @@ class NotebookPage(gtk.HBox):
     def set_file_path(self, file_path=''):
         """
         Set the file path, '' for no file path.
-        
+
         Args:
             file_path: file path string
         """
-        if file_path: self.file_path = os.path.abspath(file_path)
-        else: self.file_path = ''
+        self.file_path = os.path.abspath(file_path) if file_path else ''
 
     def get_saved(self):
         """
         Get the saved status for the flow graph.
-        
+
         Returns:
             true if saved
         """
@@ -199,7 +228,7 @@ class NotebookPage(gtk.HBox):
     def set_saved(self, saved=True):
         """
         Set the saved status.
-        
+
         Args:
             saved: boolean status
         """
@@ -208,7 +237,7 @@ class NotebookPage(gtk.HBox):
     def get_state_cache(self):
         """
         Get the state cache for the flow graph.
-        
+
         Returns:
             the state cache
         """

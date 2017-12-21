@@ -111,17 +111,7 @@ namespace gr {
     {
       close();
 
-      if(d_fp) {
-	fclose(d_fp);
-	d_fp = 0;
-      }
-  
-      if(d_state == STATE_DETACHED) {
-	if(d_hdr_fp) {
-	  fclose(d_hdr_fp);
-	  d_hdr_fp = 0;
-	}
-      }
+
     }
 
     bool
@@ -159,7 +149,7 @@ namespace gr {
       hdr = pmt::deserialize_str(str);
       delete [] hdr_buffer;
 
-      uint64_t seg_start, extra_len;
+      uint64_t seg_start, extra_len = 0;
       pmt::pmt_t r, dump;
       if(pmt::dict_has_key(hdr, pmt::string_to_symbol("strt"))) {
 	r = pmt::dict_ref(hdr, pmt::string_to_symbol("strt"), dump);
@@ -297,7 +287,7 @@ namespace gr {
     bool
     file_meta_source_impl::_open(FILE **fp, const char *filename)
     {
-      gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this function
+      gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this function
 
       bool ret = true;
       int fd;
@@ -326,7 +316,7 @@ namespace gr {
     void
     file_meta_source_impl::close()
     {
-      gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this function
+      gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this function
       if(d_state == STATE_DETACHED) {
 	if(d_new_hdr_fp) {
 	  fclose(d_new_hdr_fp);
@@ -339,13 +329,25 @@ namespace gr {
 	d_new_fp = 0;
       }
       d_updated = true;
+
+      if (d_fp) {
+        fclose(d_fp);
+        d_fp = 0;
+      }
+
+      if (d_state == STATE_DETACHED) {
+        if (d_hdr_fp) {
+          fclose(d_hdr_fp);
+          d_hdr_fp = 0;
+        }
+      }
     }
 
     void
     file_meta_source_impl::do_update()
     {
       if(d_updated) {
-	gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this block
+	gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this block
 	if(d_state == STATE_DETACHED) {
 	  if(d_hdr_fp)
 	    fclose(d_hdr_fp);
@@ -403,7 +405,7 @@ namespace gr {
 	d_tags.pop_back();
       }
 
-      gr::thread::scoped_lock lock(d_mutex); // hold for the rest of this function
+      gr::thread::scoped_lock lock(d_setlock); // hold for the rest of this function
       while(size) {
 	i = fread(out, d_itemsize, size, d_fp);
 

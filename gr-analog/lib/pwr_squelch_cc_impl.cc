@@ -38,7 +38,7 @@ namespace gr {
     }
 
     pwr_squelch_cc_impl::pwr_squelch_cc_impl(double threshold, double alpha,
-					     int ramp, bool gate) 
+					     int ramp, bool gate)
       :	block("pwr_squelch_cc",
 		 io_signature::make(1, 1, sizeof(gr_complex)),
 		 io_signature::make(1, 1, sizeof(gr_complex))),
@@ -67,6 +67,20 @@ namespace gr {
     pwr_squelch_cc_impl::update_state(const gr_complex &in)
     {
       d_pwr = d_iir.filter(in.real()*in.real()+in.imag()*in.imag());
+    }
+
+    void
+    pwr_squelch_cc_impl::set_threshold(double db)
+    {
+        gr::thread::scoped_lock l(d_setlock);
+        d_threshold = std::pow(10.0, db/10);
+    }
+
+    void
+    pwr_squelch_cc_impl::set_alpha(double alpha)
+    {
+        gr::thread::scoped_lock l(d_setlock);
+        d_iir.set_taps(alpha);
     }
 
   } /* namespace analog */

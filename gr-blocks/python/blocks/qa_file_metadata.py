@@ -57,7 +57,7 @@ class test_file_metadata(gr_unittest.TestCase):
         data = sig_source_c(samp_rate, 1000, 1, N)
         src  = blocks.vector_source_c(data)
         fsnk = blocks.file_meta_sink(gr.sizeof_gr_complex, outfile,
-                                     samp_rate, 1, 
+                                     samp_rate, 1,
                                      blocks.GR_FILE_FLOAT, True,
                                      1000000, extras_str, detached)
         fsnk.set_unbuffered(True)
@@ -106,6 +106,7 @@ class test_file_metadata(gr_unittest.TestCase):
         self.tb.connect(src, ssnk)
         self.tb.run()
 
+        fsrc.close() 
         # Test to make sure tags with 'samp_rate' and 'rx_rate' keys
         # were generated and received correctly.
         tags = tsnk.current_tags()
@@ -136,7 +137,7 @@ class test_file_metadata(gr_unittest.TestCase):
         data = sig_source_c(samp_rate, 1000, 1, N)
         src  = blocks.vector_source_c(data)
         fsnk = blocks.file_meta_sink(gr.sizeof_gr_complex, outfile,
-                                     samp_rate, 1, 
+                                     samp_rate, 1,
                                      blocks.GR_FILE_FLOAT, True,
                                      1000000, extras_str, detached)
         fsnk.set_unbuffered(True)
@@ -187,6 +188,7 @@ class test_file_metadata(gr_unittest.TestCase):
         self.tb.connect(src, ssnk)
         self.tb.run()
 
+        fsrc.close()
         # Test to make sure tags with 'samp_rate' and 'rx_rate' keys
         # were generated and received correctly.
         tags = tsnk.current_tags()

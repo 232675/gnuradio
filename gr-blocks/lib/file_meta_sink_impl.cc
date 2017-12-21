@@ -141,17 +141,7 @@ namespace gr {
     {
       close();
 
-      if(d_fp) {
-	fclose(d_fp);
-	d_fp = 0;
-      }
-  
-      if(d_state == STATE_DETACHED) {
-	if(d_hdr_fp) {
-	  fclose(d_hdr_fp);
-	  d_hdr_fp = 0;
-	}
-      }
+
     }
 
     bool
@@ -171,7 +161,7 @@ namespace gr {
     bool
     file_meta_sink_impl::_open(FILE **fp, const char *filename)
     {
-      gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this function
+      gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this function
 
       bool ret = true;
       int fd;
@@ -201,7 +191,7 @@ namespace gr {
     void
     file_meta_sink_impl::close()
     {
-      gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this function
+      gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this function
       update_last_header();
 
       if(d_state == STATE_DETACHED) {
@@ -216,13 +206,25 @@ namespace gr {
 	d_new_fp = 0;
       }
       d_updated = true;
+
+      if (d_fp) {
+        fclose(d_fp);
+        d_fp = 0;
+      }
+
+      if (d_state == STATE_DETACHED) {
+        if (d_hdr_fp) {
+          fclose(d_hdr_fp);
+          d_hdr_fp = 0;
+        }
+      }
     }
 
     void
     file_meta_sink_impl::do_update()
     {
       if(d_updated) {
-	gr::thread::scoped_lock guard(d_mutex); // hold mutex for duration of this block
+	gr::thread::scoped_lock guard(d_setlock); // hold mutex for duration of this block
 	if(d_state == STATE_DETACHED) {
 	  if(d_hdr_fp)
 	    fclose(d_hdr_fp);
@@ -298,10 +300,11 @@ namespace gr {
     void
     file_meta_sink_impl::update_last_header()
     {
-      if(d_state == STATE_DETACHED)
-	update_last_header_detached();
-      else
-	update_last_header_inline();
+      if(d_state == STATE_DETACHED) {
+        if (d_hdr_fp) update_last_header_detached();
+      } else {
+        if(d_fp) update_last_header_inline();
+      }
     }
 
     void

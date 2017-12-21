@@ -1,6 +1,6 @@
 /*! \page page_filter Filter Signal Processing Blocks
 
-\section Introduction
+\section filter_introduction Introduction
 
 This is the gr-filter package. It contains signal processing blocks to
 perform filtering operations.
@@ -20,12 +20,12 @@ after importing by using:
     help(filter)
 \endcode
 
-\section Dependencies
+\section filter_dependencies Dependencies
 
 The filter blocks depend on \ref page_fft.
 
 
-\section Usage
+\section filter_usage Usage
 
 There are many filter blocks and kernels in GNU Radio. Filter blocks
 are standard GNU Radio blocks that fit into a flowgraph. Filter
@@ -54,14 +54,9 @@ impulse response (IIR) filtering.
 an IIR filter with a single pole (also known as a moving average
 filter).
 
-\li Adaptive FIR filters (see adaptive_fir.h): FIR filters that define
-an \b error and \b update_tap virtual interface to create filters that
-update the taps based on some criteria. \sa
-gr::digital::lms_dd_equalizer_cc, gr::digital::cma_equalizer_cc
-
 \li PFB arbitrary resampler (see pfb_arb_resampler.h): performs
 arbitrary resampling (i.e., using any real number) using the polyphase
-filterbank method. \sa \ref pfb_arb_resampl
+filterbank method. \sa \ref pfb_arb_resampler
 
 \li Polyphase filterbank (see polyphase_filterbank.h): a set of base
 classes with standard functions for building many polyphase filterbank
@@ -93,11 +88,6 @@ blocks.
   <ul>
   <li>gr::filter::single_pole_iir_filter_cc</li>
   <li>gr::filter::single_pole_iir_filter_ff</li>
-  </ul>
-<li>Adaptive FIR Filters</li>
-  <ul>
-  <li>gr::filter::adaptive_fir_ccc</li>
-  <li>gr::filter::adaptive_fir_ccf</li>
   </ul>
 <li>Polyphase Filterbanks</li>
   <ul>
@@ -227,7 +217,7 @@ example of this can be found in \b examples/filter/gr_filtdes_api.py.
 
 \code
 filtobj = filter_design.launch(sys.argv)
-print "Filter Count:", filtobj.get_filtercount()  
+print "Filter Count:", filtobj.get_filtercount()
 print "Filter type:", filtobj.get_restype()
 print "Filter params", filtobj.get_params()
 print "Filter Coefficients", filtobj.get_taps()

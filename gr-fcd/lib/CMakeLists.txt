@@ -41,7 +41,6 @@ link_directories(
 
 if(ENABLE_GR_CTRLPORT)
   ADD_DEFINITIONS(-DGR_CTRLPORT)
-  include_directories(${ICE_INCLUDE_DIR})
 endif(ENABLE_GR_CTRLPORT)
 
 include_directories(${LOG4CPP_INCLUDE_DIRS})
@@ -80,6 +79,8 @@ endif()
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FIND_LIBRARY(IOKIT_LIBRARY IOKit)
   list(APPEND fcd_libs ${IOKIT_LIBRARY})
+  FIND_LIBRARY(CF_LIBRARY CoreFoundation)
+  list(APPEND fcd_libs ${CF_LIBRARY})
 elseif (NOT WIN32)
   list(APPEND fcd_libs
     ${LIBUSB_LIBRARIES}
